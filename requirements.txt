@@ -7,3 +7,5 @@ matplotlib
 numpy
 google-genai
 gdown
+requests
+streamlit-lottie
