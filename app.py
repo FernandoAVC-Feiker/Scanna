@@ -63,7 +63,7 @@ st.markdown("""
 # TU ID DE DRIVE (Ya puesto)
 GOOGLE_DRIVE_FILE_ID = "1qMLmfuY_LteFcruxGEuq-nqlIzVSmFNv"
 
-GEMINI_MODEL_ID = "gemini-1.5-flash" 
+GEMINI_MODEL_ID = "gemini-2.5-flash" 
 classes = ['ANEMIA', 'NO_ANEMIA']
 path_modelo = 'best_model_ViT.pth'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -291,3 +291,4 @@ else:
                     st.error(f"Error de Google API: {e}")
                 except Exception as e:
                     st.error(f"Error inesperado: {e}")
+
