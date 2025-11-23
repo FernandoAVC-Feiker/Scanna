@@ -13,7 +13,7 @@ import streamlit as st
 from streamlit_lottie import st_lottie
 from google import genai
 from google.genai.errors import APIError
-# import gdown (Ya no se usa en local, descomentar si vas a nube con drive)
+import gdown
 
 # ==========================================================
 # ⚙️ CONFIGURACIÓN DE LA PÁGINA
@@ -268,3 +268,4 @@ else:
                 st.error(f"Error API: {e}")
             except Exception as e:
                 st.error(f"Error: {e}")
+
