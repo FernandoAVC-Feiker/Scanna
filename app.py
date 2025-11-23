@@ -13,7 +13,7 @@ import streamlit as st
 from streamlit_lottie import st_lottie
 from google import genai
 from google.genai.errors import APIError
-import gdown  # IMPORTANTE: Para bajar de Drive
+# import gdown (Ya no se usa en local, descomentar si vas a nube con drive)
 
 # ==========================================================
 # ⚙️ CONFIGURACIÓN DE LA PÁGINA
@@ -22,7 +22,7 @@ st.set_page_config(
     page_title="Scanna | AI Diagnosis",
     page_icon="👁️",
     layout="centered",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" # Colapsado por defecto en móvil
 )
 
 # --- ESTILOS CSS ---
@@ -35,7 +35,7 @@ st.markdown("""
     }
     
     .main-title {
-        font-size: 3.5rem;
+        font-size: 3rem;
         font-weight: 700;
         color: #E63946;
         text-align: center;
@@ -43,16 +43,18 @@ st.markdown("""
     }
     
     .sub-title {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         color: #457B9D;
         text-align: center;
-        margin-top: -10px;
-        margin-bottom: 30px;
+        margin-top: -5px;
+        margin-bottom: 20px;
     }
     
+    /* Ocultamos el menú hamburguesa genérico pero DEJAMOS el header 
+       visible por si acaso, aunque ya no lo necesitamos tanto */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,17 +62,14 @@ st.markdown("""
 # ⚙️ CONFIGURACIÓN BACKEND
 # ==========================================================
 
-# TU ID DE DRIVE (Ya puesto)
-GOOGLE_DRIVE_FILE_ID = "1qMLmfuY_LteFcruxGEuq-nqlIzVSmFNv"
-
 GEMINI_MODEL_ID = "gemini-2.5-flash" 
 classes = ['ANEMIA', 'NO_ANEMIA']
 path_modelo = 'best_model_ViT.pth'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Configuración OOD (Filtro de Calidad)
+# Configuración OOD
 VIT_NAME = "google/vit-base-patch16-224-in21k"
-MSP_THRESHOLD = 0.75  # 75% de confianza mínima
+MSP_THRESHOLD = 0.75
 ENERGY_T = 2
 
 # ==========================================================
@@ -86,43 +85,29 @@ def load_lottieurl(url: str):
 
 @st.cache_resource
 def load_vit_system():
-    # 1. Cargar Procesador (Desde HuggingFace)
+    # 1. Procesador
     try:
         processor = AutoImageProcessor.from_pretrained(VIT_NAME)
     except Exception as e:
         st.error(f"Error cargando procesador: {e}")
         st.stop()
 
-    # 2. Cargar Arquitectura
+    # 2. Modelo
     model = ViTForImageClassification.from_pretrained(
         VIT_NAME,
         num_labels=len(classes)
     )
 
-    # 3. DESCARGA DESDE DRIVE (Si no existe el archivo)
+    # 3. Verificación Local
     if not os.path.exists(path_modelo):
-        if "PEGA_AQUI" in GOOGLE_DRIVE_FILE_ID:
-            st.error("❌ ERROR: ID de Drive inválido.")
-            st.stop()
-            
-        url = f'https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}'
-        
-        # Mensaje de carga bonito
-        with st.status("☁️ Descargando modelo desde la nube...", expanded=True) as status:
-            st.write("Conectando con Google Drive...")
-            try:
-                gdown.download(url, path_modelo, quiet=False)
-                st.write("¡Descarga completada!")
-                status.update(label="Modelo listo", state="complete", expanded=False)
-            except Exception as e:
-                st.error(f"❌ Error al descargar de Drive: {e}")
-                st.stop()
+        st.error(f"❌ ERROR: No encuentro '{path_modelo}'")
+        st.stop()
 
-    # 4. Cargar Pesos
+    # 4. Pesos
     try:
         model.load_state_dict(torch.load(path_modelo, map_location=device))
     except RuntimeError as e:
-        st.error(f"❌ Error de arquitectura: {e}")
+        st.error(f"❌ Error arquitectura: {e}")
         st.stop()
 
     model.to(device)
@@ -131,7 +116,7 @@ def load_vit_system():
     
     return model, processor
 
-# Inicializar sistema
+# Inicializar
 model, processor = load_vit_system()
 
 transform = transforms.Compose([
@@ -140,7 +125,7 @@ transform = transforms.Compose([
 ])
 
 # ==========================================================
-# VALIDACIÓN OOD (QUALITY CHECK)
+# LOGICA OOD
 # ==========================================================
 def check_image_quality(pil_img, model, processor, threshold=MSP_THRESHOLD):
     inputs = processor(images=pil_img, return_tensors="pt")
@@ -181,40 +166,39 @@ def concat_images_horizontally(img1, img2):
     return new_img
 
 # ==========================================================
-# FRONTEND
+# FRONTEND (INTERFAZ MÓVIL OPTIMIZADA)
 # ==========================================================
 
 st.markdown('<p class="main-title">SCANNA</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Diagnóstico Oftalmológico Asistido por IA</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Diagnóstico Oftalmológico IA</p>', unsafe_allow_html=True)
 
-with st.sidebar:
-    lottie_eye = load_lottieurl("https://lottie.host/5f6d2c49-4f02-4476-9416-763167552060/l8W1Fw3Z4j.json")
-    if lottie_eye:
-        st_lottie(lottie_eye, height=150, key="eye")
-    else:
-        st.markdown("👁️ **SCANNA AI**")
+# --- ANIMACIÓN (Opcional en Sidebar o Main) ---
+# En móvil, el sidebar está oculto, así que ponemos la animación pequeña arriba
+lottie_eye = load_lottieurl("https://lottie.host/5f6d2c49-4f02-4476-9416-763167552060/l8W1Fw3Z4j.json")
+if lottie_eye:
+    st_lottie(lottie_eye, height=100, key="eye_mobile")
 
-    st.divider()
-    st.header("🔐 Credenciales")
+# --- CONFIGURACIÓN (EXPANDER PRINCIPAL) ---
+# Esto reemplaza al sidebar para que sea accesible en celulares
+with st.expander("🔐 Configuración y Acceso (Clic Aquí)", expanded=True):
+    st.write("Ingresa tus credenciales para iniciar el sistema.")
     gemini_api_key = st.text_input("Google API Key", type="password", help="Tu clave de AI Studio")
-    
-    st.info(f"**Filtro de Calidad Activo**\nConfianza mínima: {int(MSP_THRESHOLD*100)}%")
+    st.caption(f"Filtro de Calidad Activo: >{int(MSP_THRESHOLD*100)}% confianza")
 
-# --- LOGICA PRINCIPAL ---
+# --- LÓGICA PRINCIPAL ---
 
 if not gemini_api_key:
-    st.warning("⚠️ Por favor, ingresa tu API Key en el menú lateral.")
-    st.markdown(
-        """<div style="text-align: center; color: gray; padding: 50px; border: 2px dashed #ccc; border-radius: 10px;">
-            Esperando activación del sistema...
-        </div>""", unsafe_allow_html=True
-    )
+    st.info("👆 Por favor, despliega el menú de arriba e ingresa tu API Key.")
 else:
-    uploaded_file = st.file_uploader("Sube la imagen del paciente (JPG/PNG)", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("📸 Sube la foto del ojo", type=["png", "jpg", "jpeg"])
 
     if uploaded_file:
         img = Image.open(uploaded_file).convert("RGB")
-        my_bar = st.progress(0, text="Validando calidad de imagen...")
+        
+        # Feedback visual inmediato
+        st.image(img, caption="Imagen cargada", use_container_width=True)
+        
+        my_bar = st.progress(0, text="Validando calidad...")
         
         # 1. FILTRO OOD
         time.sleep(0.2)
@@ -222,24 +206,20 @@ else:
         
         if not is_valid:
             my_bar.empty()
-            st.error("⛔ IMAGEN RECHAZADA: Calidad insuficiente o fuera de distribución.")
-            col1, col2 = st.columns(2)
-            with col1: st.image(img, caption="Imagen", use_container_width=True)
-            with col2:
-                st.metric("Confianza", f"{confidence*100:.1f}%")
-                st.metric("Mínimo Requerido", f"{MSP_THRESHOLD*100:.0f}%")
-                st.warning("La IA no reconoce esto como un ojo válido para diagnóstico.")
+            st.error("⛔ IMAGEN NO VÁLIDA")
+            st.warning(f"Confianza muy baja ({confidence*100:.1f}%). La IA no reconoce esto como un ojo diagnosticable.")
+            st.info("Intenta tomar la foto más cerca y con buena luz.")
             st.stop()
             
         # 2. INFERENCIA
-        my_bar.progress(30, text="Imagen válida. Procesando...")
+        my_bar.progress(40, text="Analizando tejidos...")
         image_tensor = transform(img).unsqueeze(0).to(device)
         with torch.no_grad():
             preds = model(image_tensor, output_attentions=True)
             logits = preds.logits
             attention_maps = preds.attentions
 
-        my_bar.progress(70, text="Generando mapas de calor...")
+        my_bar.progress(80, text="Generando mapas de calor...")
         predicted_class = classes[torch.argmax(logits, dim=1).item()]
         
         heatmap_img = generate_heatmap_and_transparency(
@@ -247,48 +227,44 @@ else:
         )
         combined_img = concat_images_horizontally(img, heatmap_img)
         
-        my_bar.progress(100, text="¡Análisis Completado!")
+        my_bar.progress(100, text="¡Listo!")
         time.sleep(0.5)
         my_bar.empty()
 
-        # 3. RESULTADOS
-        tab1, tab2 = st.tabs(["📊 Diagnóstico Visual", "📝 Informe Médico (IA)"])
-
-        with tab1:
-            st.subheader("Resultados del Modelo ViT")
-            st.caption(f"✅ Calidad aprobada (Confianza: {confidence*100:.1f}%)")
+        # 3. RESULTADOS (Diseño limpio)
+        st.divider()
+        st.subheader("Resultados")
+        
+        if predicted_class == "ANEMIA":
+            st.error(f"⚠️ DETECCIÓN: {predicted_class}")
+        else:
+            st.success(f"✅ DETECCIÓN: {predicted_class}")
             
-            if predicted_class == "ANEMIA":
-                st.error(f"⚠️ DIAGNÓSTICO POSITIVO: {predicted_class}")
-            else:
-                st.success(f"✅ DIAGNÓSTICO NEGATIVO: {predicted_class}")
-            
-            st.image(combined_img, caption="Original vs Atención IA", use_container_width=True)
+        st.caption("Izquierda: Original | Derecha: Zonas analizadas (Heatmap)")
+        st.image(combined_img, use_container_width=True)
 
-        with tab2:
-            st.subheader("Análisis Fisiopatológico con Gemini")
-            if st.button("✨ Generar Explicación Detallada", type="primary"):
-                # PROMPT ORIGINAL
-                prompt = (
-                    f"Analiza la Imagen A (entrada cruda) y la Imagen B (mapa de atención asociado). "
-                    f"Las siguientes imágenes pertenecen a la clase {predicted_class} según el clasificador de anemia. "
-                    f"Explica en un solo párrafo qué regiones resaltadas en B guiaron la decisión, "
-                    f"qué rasgos visuales en A (color, vascularización, textura o palidez) sustentan la pertenencia a {predicted_class}, "
-                    f"y cómo estos se relacionan fisiológicamente con la presencia o ausencia de anemia. "
-                    f"Mantén la explicación breve, médica y directamente basada en lo que se observa."
-                )
+        st.divider()
+        st.subheader("Opinión Médica (IA)")
+        
+        if st.button("📄 Generar Informe Detallado"):
+            prompt = (
+                f"Analiza la Imagen A (entrada cruda) y la Imagen B (mapa de atención asociado). "
+                f"Las siguientes imágenes pertenecen a la clase {predicted_class} según el clasificador de anemia. "
+                f"Explica en un solo párrafo qué regiones resaltadas en B guiaron la decisión, "
+                f"qué rasgos visuales en A (color, vascularización, textura o palidez) sustentan la pertenencia a {predicted_class}, "
+                f"y cómo estos se relacionan fisiológicamente con la presencia o ausencia de anemia. "
+                f"Mantén la explicación breve, médica y directamente basada en lo que se observa."
+            )
 
-                try:
-                    client = genai.Client(api_key=gemini_api_key)
-                    with st.spinner(f"Consultando a {GEMINI_MODEL_ID}..."):
-                        response = client.models.generate_content(
-                            model=GEMINI_MODEL_ID,
-                            contents=[prompt, combined_img]
-                        )
-                    st.markdown("### 💬 Reporte:")
-                    st.info(response.text)
-                except APIError as e:
-                    st.error(f"Error de Google API: {e}")
-                except Exception as e:
-                    st.error(f"Error inesperado: {e}")
-
+            try:
+                client = genai.Client(api_key=gemini_api_key)
+                with st.spinner(f"Consultando a {GEMINI_MODEL_ID}..."):
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL_ID,
+                        contents=[prompt, combined_img]
+                    )
+                st.markdown(response.text)
+            except APIError as e:
+                st.error(f"Error API: {e}")
+            except Exception as e:
+                st.error(f"Error: {e}")
