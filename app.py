@@ -282,3 +282,12 @@ else:
                     client = genai.Client(api_key=gemini_api_key)
                     with st.spinner(f"Consultando a {GEMINI_MODEL_ID}..."):
                         response = client.models.generate_content(
+                            model=GEMINI_MODEL_ID,
+                            contents=[prompt, combined_img]
+                        )
+                    st.markdown("### 💬 Reporte:")
+                    st.info(response.text)
+                except APIError as e:
+                    st.error(f"Error de Google API: {e}")
+                except Exception as e:
+                    st.error(f"Error inesperado: {e}")
