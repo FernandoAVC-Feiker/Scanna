@@ -69,7 +69,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Configuración OOD
 VIT_NAME = "google/vit-base-patch16-224-in21k"
-MSP_THRESHOLD = 0.75
+MSP_THRESHOLD = 0.74
 ENERGY_T = 2
 
 # ==========================================================
@@ -268,4 +268,5 @@ else:
                 st.error(f"Error API: {e}")
             except Exception as e:
                 st.error(f"Error: {e}")
+
 
